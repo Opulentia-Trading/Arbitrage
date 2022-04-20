@@ -1,0 +1,14 @@
+{
+  "name": "arbitrage-contracts",
+  "version": "0.1.0",
+  "description": "Arbitrage smart contracts",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@uniswap/v3-core": "^1.0.1"
+  }
+}

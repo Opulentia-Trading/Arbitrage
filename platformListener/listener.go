@@ -1,26 +1,26 @@
 package platformListener
 
 type TickerPrice struct {
+	// TODO: Add timestamps
 	Symbol string `json:"symbol"`
 	Price  string `json:"price"`
 }
 
+// Interface defining required methods for a DEX/CEX handler
 type ListenerHandler interface {
-	PingTest()
+	TestConnection()
 	FetchTickerPriceAll() []TickerPrice
 }
 
 type Listener struct {
-	platformName     string
-	supportedTickers []string
+	PlatformName string
+	// supportedTickers []string
 	ListenerHandler
 }
 
-func NewListener(platformName string, supportedTickers []string) *Listener {
-	return &Listener{platformName: platformName, supportedTickers: supportedTickers}
-}
-
-// Bind a DEX/CEX handler to a listener instance
-func (l *Listener) BindHandler(handler ListenerHandler) {
-	l.ListenerHandler = handler
+func NewListener(platformName string, handler ListenerHandler) *Listener {
+	return &Listener{
+		PlatformName:    platformName,
+		ListenerHandler: handler,
+	}
 }
