@@ -28,6 +28,8 @@ func main() {
 	binanceListener.TestConnection()
 	tickerPricesBinance := binanceListener.FetchTickerPriceAll()
 	fmt.Println(tickerPricesBinance[0:5])
+	tickerPriceBinance := binanceListener.FetchTickerPrice("LINK", "ETH")
+	fmt.Println(tickerPriceBinance)
 
 	// Test the UniswapV3 listener
 	uniswapV3Handler := platformListener.NewUniswapV3Handler()
@@ -37,4 +39,6 @@ func main() {
 	uniswapV3Listener.TestConnection()
 	tickerPricesUniswap := uniswapV3Listener.FetchTickerPriceAll()
 	fmt.Println(tickerPricesUniswap)
+	tickerPriceUniswap := uniswapV3Listener.FetchTickerPrice("LINK", "ETH")
+	fmt.Println(tickerPriceUniswap)
 }

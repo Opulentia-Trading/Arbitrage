@@ -10,6 +10,7 @@ type TickerPrice struct {
 type ListenerHandler interface {
 	TestConnection()
 	FetchTickerPriceAll() []TickerPrice
+	FetchTickerPrice(asset1 string, asset2 string) TickerPrice
 }
 
 type Listener struct {

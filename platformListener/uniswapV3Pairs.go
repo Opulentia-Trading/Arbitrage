@@ -42,6 +42,13 @@ var (
 		symbol:   "APE",
 		name:     "ApeCoin",
 	}
+
+	tokenLINK = tokenWrapper{
+		address:  "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+		decimals: 18,
+		symbol:   "LINK",
+		name:     "ChainLink Token",
+	}
 )
 
 // ========== Pool Definitions ==========
@@ -67,6 +74,18 @@ var (
 		token1:      &tokenWETH,
 	}
 
-	// Array holding references to all defined pools
-	uniswapV3PoolList = []*poolWrapper{&pool_USDC_ETH, &pool_WBTC_ETH, &pool_APE_ETH}
+	// LINK/ETH
+	pool_LINK_ETH = poolWrapper{
+		poolAddress: "0xa6Cc3C2531FdaA6Ae1A3CA84c2855806728693e8",
+		token0:      &tokenLINK,
+		token1:      &tokenWETH,
+	}
+
+	// Map holding references to all defined pools
+	uniswapV3PoolMap = map[string]*poolWrapper{
+		"USDC/ETH": &pool_USDC_ETH,
+		"WBTC/ETH": &pool_WBTC_ETH,
+		"APE/ETH":  &pool_APE_ETH,
+		"LINK/ETH": &pool_LINK_ETH,
+	}
 )

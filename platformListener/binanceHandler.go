@@ -17,6 +17,7 @@ func NewBinanceHandler() *BinanceHandler {
 	binanceEndpoints := cexEndpointIdx{
 		apiTest:        "/api/v3/ping",
 		tickerPriceAll: "/api/v3/ticker/price",
+		tickerPrice:    "/api/v3/ticker/price?symbol=",
 	}
 
 	cexHandlerInst := newCEXHandler(binanceBaseUrl, binanceApiKey, &binanceEndpoints)
@@ -63,6 +64,28 @@ func (b *BinanceHandler) FetchTickerPriceAll() []TickerPrice {
 
 	var result []TickerPrice
 
+	dec := json.NewDecoder(resp.Body)
+	err = dec.Decode(&result)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	return result
+}
+
+// Implements the ListenerHandler interface
+func (b *BinanceHandler) FetchTickerPrice(asset1 string, asset2 string) TickerPrice {
+	symbol := asset1 + asset2
+	url := b.baseUrl + b.endpoints.tickerPrice + symbol
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// Free up the response body after the function completes
+	defer resp.Body.Close()
+
+	var result TickerPrice
 	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&result)
 	if err != nil {

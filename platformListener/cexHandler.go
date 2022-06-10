@@ -3,6 +3,7 @@ package platformListener
 type cexEndpointIdx struct {
 	apiTest        string
 	tickerPriceAll string
+	tickerPrice    string
 }
 
 type cexHandler struct {

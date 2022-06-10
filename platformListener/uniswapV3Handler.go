@@ -36,12 +36,23 @@ func (u *UniswapV3Handler) TestConnection() {
 func (u *UniswapV3Handler) FetchTickerPriceAll() []TickerPrice {
 	var result []TickerPrice
 
-	for _, pool := range uniswapV3PoolList {
+	for _, pool := range uniswapV3PoolMap {
 		ticker := u.getPoolPrice(pool)
 		result = append(result, ticker)
 	}
 
 	return result
+}
+
+// Implements the ListenerHandler interface
+func (u *UniswapV3Handler) FetchTickerPrice(asset1 string, asset2 string) TickerPrice {
+	symbol := fmt.Sprintf("%v/%v", asset1, asset2)
+	pool, poolFound := uniswapV3PoolMap[symbol]
+	if !poolFound {
+		log.Fatal("Unknown UniswapV3 symbol: ", symbol)
+	}
+
+	return u.getPoolPrice(pool)
 }
 
 func (u *UniswapV3Handler) getPoolInstance(address string) *uniswapV3Pool.UniswapV3Pool {
