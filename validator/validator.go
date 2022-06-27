@@ -1,17 +1,31 @@
 package validator
 
-import "fmt"
+import (
+	"github.com/Opulentia-Trading/Arbitrage/platformListener"
+)
 
-type Validator struct{}
+type TickerPrice = platformListener.TickerPrice
 
-func NewValidator() *Maintainer {
-	return &Validator{}
+type PlatformInfo struct {
+	TYPE string
+	NAME string
+}
+type ArbResult struct {
+	SYMBOL   		string
+	PLATFORM 		*PlatformInfo
+	ACTION        	string
+	AMOUNT        	int
+	TRANSACTIONID 	string
+	NEXT          	*ArbResult
 }
 
-func (v *Validator) execute_arb(pair string) {
-	// Grab from DB here
-	fmt.Println("Calculating :", pair)
+func main(platform1 TickerPrice, platform2 TickerPrice) ArbResult{
+	var result ArbResult
+	// Get Flashbot contract
 
-	// Execute arb here
-	fmt.Println("Executing :", pair)
+	// Execute contract getProfit function between both pair pools
+
+
+
+	return result
 }
