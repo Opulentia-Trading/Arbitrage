@@ -6,40 +6,96 @@
 # Altogether, we have a profit of y-z
  
 from math import sqrt
+from collections import namedtuple
 
 # (BASE1, QUOTE1)
 # (BASE2, QUOTE2)
 # Conditions QUOTE2 < QUOTE1
 
+from dataclasses import dataclass
+
+
+@dataclass
+class Platform:
+    name: str
+    tokens: list
+
+@dataclass
+class Tokens:
+    reserves: int
+    name: str
+
+
+# FILL IN HERE
+token1_1 = Tokens(, "eth")
+token2_1 = Tokens(, "btc")
+token1_2 = Tokens(, "eth")
+token2_2 = Tokens(, "btc")
+
+platform1 = Platform("PancakeSwap", [token1_1, token2_1])
+platform2 = Platform("SushiSwap", [token1_2, token2_2])
+
+
 # This returns the amount needed to be borrowed in terms of quote token 1
 def calculate_arb(platform_1, platform_2):
-    quote_1, base_1 = platform_1
-    quote_2, base_2 = platform_2
+    pool0token0, pool0token1 = platform_1.tokens
+    pool1token0, pool1token1 = platform_2.tokens
     
-    # We want to use the quadratic equation to maximize the potential profit
+    # The amount we will be buying on platform 1 denominated in token 2
+    amount_to_buy = calc_max_to_buy(pool0token0.reserves, pool0token1.reserves, pool1token0.reserves, pool1token1.reserves)
 
-    a = quote_1*base_1 - quote_2*base_2
-    b = 2*base_1*base_2*(quote_1 + quote_2)
-    c = base_1*base_2*(quote_1*base_2 - quote_2*base_1)
+    # The amount we will be buying on platform 1 denominated in token 1
+    amount_to_pay_back = amount_in(amount_to_buy, pool0token0.reserves, pool0token1.reserves)
 
-    # Prove ax^2 + bx + c = 0
-    m = b**2 - 4*a*c
+    # The amount we will be receiving on platform 2 once we sell the token 2 on platform 2
+    amount_received = amount_out(amount_to_buy, pool1token1.reserves, pool1token0.reserves)
 
-    # We can't square root negatives
-    if (m < 0):
+    if (amount_received < amount_to_pay_back):
+        return None
+    
+    platform2_struct = create_struct("sell", amount_to_buy, pool1token0.name, pool0token1.name, platform_1.name, None)
+    platform1_struct = create_struct("buy", amount_to_buy, None, pool0token1.name, platform_1.name, platform2_struct)
+
+    return platform1_struct
+
+def create_struct(action, amount, currency_received, token, platform, next):
+    struct = {"Action": action, "Amount": amount, "To Receive": currency_received, "Token": token, "Platform": platform, "Action": next}
+    return struct
+
+def calc_max_to_buy(p0t0, p0t1, p1t0, p1t1):
+
+    # Formulate a quadratic equation with their reserve amounts
+    term1 = p0t0 * p0t1 - p1t0 * p1t1
+    term2 = 2 * p0t1 * p1t1 * (p0t0 + p1t0)
+    term3 = p0t1 * p1t1 * (p0t0 * p1t1 - p1t0 * p0t1)
+
+    # Now we solve for quadratic equation: term1*x^2 + term2*x + term3 = 0
+    discriminant = term2**2-4*term1*term3
+
+    if discriminant < 0:
+        print ("This equation has no real solution")
         return -1
+    
+    # This is the amount we want to buy
+    x1 = (-term2+sqrt(discriminant))/(2*term1)
+    x2 = (-term2-sqrt(discriminant))/(2*term1)
 
-    # Our 2 possible solutions are here
-    x_1 = (-b + sqrt(m))/(2*a)
-    x_2 = (-b - sqrt(m))/(2*a)
+    if (x1 > 0 and x1 < p0t1 and x1 < p1t1):
+        return x1
+    elif (x2 > 0 and x2 < p0t1 and x2 < p1t1):
+        return x2
+    return -1
 
-    check_1 = x_1 > 0 and x_1 < base_1 and x_1 < base_2
-    check_2 = x_2 > 0 and x_2 < base_2 and x_2 < base_2
 
-    if (check_1 or check_2):
-        return -1
+def amount_in(to_buy, p0t0, p0t1):
+    numerator = p0t0 * to_buy * 100
+    denominator = p0t1 * to_buy * 997
+    return numerator / denominator + 1
 
-    return x_1 if check_1 else x_2
+def amount_out(to_buy, p0t0, p0t1):
+    numerator = p0t0 * to_buy * 100
+    denominator = p0t1 * to_buy * 997
+    return numerator / denominator + 1
 
 if __name__ == "__main__":
-    print(calculate_arb((10, 8), (10, 9)))
+    print(calculate_arb(platform1, platform2))
