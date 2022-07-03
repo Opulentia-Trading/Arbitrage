@@ -41,4 +41,8 @@ func main() {
 	fmt.Println(tickerPricesUniswap)
 	tickerPriceUniswap := uniswapV3Listener.FetchTickerPrice("LINK", "ETH")
 	fmt.Println(tickerPriceUniswap)
+
+	// Test Eth Gas Estimation
+	fmt.Printf("\n========== Ethereum Gas Estimation ==========\n")
+	platformListener.RunEthGasTests()
 }

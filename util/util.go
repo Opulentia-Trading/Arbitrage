@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"runtime"
@@ -24,4 +25,10 @@ func CurDirname() (string, error) {
 	}
 
 	return filepath.Dir(filename), nil
+}
+
+// Pretty prints an object
+func PrettyPrint(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "  ")
+	return string(s)
 }
