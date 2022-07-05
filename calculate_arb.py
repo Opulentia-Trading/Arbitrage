@@ -20,8 +20,9 @@ load_dotenv("env\.env")
 INFURA_ID = os.getenv('INFURA_PROJECT_ID')
 ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 TOKEN_1_NAME, TOKEN_1 = ("DAI", "0x6b175474e89094c44da98b954eedeac495271d0f")
-TOKEN_2_NAME, TOKEN_2 = ("USDT", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
+TOKEN_2_NAME, TOKEN_2 = ("ETH", "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
 PLATFORM_1, PLATFORM_2 = ("Uniswap", "Sushiswap")
+PLATFORM_1_FACTORY, PLATFORM_2_FACTORY = ("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f", "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac")
 
 def create_struct(action, amount, currency_received, token, platform, next=None):
     struct = {"Action": action, "Amount": amount, "To Receive": currency_received, "Token": token, "Platform": platform, "Next": next}
@@ -101,8 +102,7 @@ def calculate_arb(platform_1, platform_2):
 
     # The amount we will be receiving on platform 2 once we sell the token 2 on platform 2
     amount_received = amount_out(amount_to_buy, pool1token1["reserves"], pool1token0["reserves"])
-
-    print(amount_received - amount_to_pay_back)
+    
     if (amount_received < amount_to_pay_back):
         return None
     
@@ -131,30 +131,31 @@ if __name__ == "__main__":
     pair_abi = pair_json["abi"]
 
     # uniswap factory
-    uniswap_factory_address = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
+    uniswap_factory_address = PLATFORM_1_FACTORY
     uniswap_factory_contract = web3.eth.contract(address=uniswap_factory_address, abi=factory_abi)
-
-    # sushiswap factory
-    sushiswap_factory_address = '0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac'
-    sushiswap_factory_contract = web3.eth.contract(address=sushiswap_factory_address, abi=factory_abi)
-
-    # uniswap pair
     get_pair_contract = uniswap_factory_contract.functions.getPair(Web3.toChecksumAddress(TOKEN_1), Web3.toChecksumAddress(TOKEN_2)).call()
     if (get_pair_contract == ZERO_ADDRESS):
         exit(1)
-    pair_contract = web3.eth.contract(address=get_pair_contract, abi=pair_abi)
-    pair = pair_contract.functions.getReserves().call()
 
-    # sushiswap pair
+    # sushiswap factory
+    sushiswap_factory_address = PLATFORM_2_FACTORY
+    sushiswap_factory_contract = web3.eth.contract(address=sushiswap_factory_address, abi=factory_abi)
     get_pair2_contract = sushiswap_factory_contract.functions.getPair(Web3.toChecksumAddress(TOKEN_1), Web3.toChecksumAddress(TOKEN_2)).call()
     if (get_pair_contract == ZERO_ADDRESS):
         exit(1)
+    
+    # get pair contract
+    pair_contract = web3.eth.contract(address=get_pair_contract, abi=pair_abi)
     pair2_contract = web3.eth.contract(address=get_pair2_contract, abi=pair_abi)
+    
+    # get reserves
+    pair = pair_contract.functions.getReserves().call()
     pair_2 = pair2_contract.functions.getReserves().call()
 
     #Convert to platform structs
-    platform_1 = convert_to_platform(pair, TOKEN_1_NAME, TOKEN_2_NAME, "Uniswap")
-    platform_2 = convert_to_platform(pair_2, TOKEN_1_NAME, TOKEN_2_NAME, "Sushiswap")
+    platform_1 = convert_to_platform(pair, TOKEN_1_NAME, TOKEN_2_NAME, PLATFORM_1)
+    platform_2 = convert_to_platform(pair_2, TOKEN_1_NAME, TOKEN_2_NAME, PLATFORM_2)
+    
     
     if(pair[0]/pair[1] < pair_2[0]/pair_2[1]):
         calculate_arb(platform_1, platform_2)
