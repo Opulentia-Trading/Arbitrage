@@ -102,7 +102,6 @@ def calculate_arb(platform_1, platform_2):
 
     # The amount we will be receiving on platform 2 once we sell the token 2 on platform 2
     amount_received = amount_out(amount_to_buy, pool1token1["reserves"], pool1token0["reserves"])
-    
     if (amount_received < amount_to_pay_back):
         return None
     
@@ -111,9 +110,9 @@ def calculate_arb(platform_1, platform_2):
     actions = create_struct("BUY", amount_to_buy, pool0token1["name"], "Arbitrary", platform_1["name"], second_step)
     return actions
 
-def convert_to_platform(pair, token1, token2, platform):
-    dic_token1 = {"name": token1, "reserves": pair[0]}
-    dic_token2 = {"name": token2, "reserves": pair[1]}
+def convert_to_platform(pair, platform):
+    dic_token1 = {"name": TOKEN_1_NAME, "reserves": pair[0]}
+    dic_token2 = {"name": TOKEN_2_NAME, "reserves": pair[1]}
     dic_platform = {"tokens": [dic_token1, dic_token2], "name": platform}
     return dic_platform
     
@@ -153,8 +152,8 @@ if __name__ == "__main__":
     pair_2 = pair2_contract.functions.getReserves().call()
 
     #Convert to platform structs
-    platform_1 = convert_to_platform(pair, TOKEN_1_NAME, TOKEN_2_NAME, PLATFORM_1)
-    platform_2 = convert_to_platform(pair_2, TOKEN_1_NAME, TOKEN_2_NAME, PLATFORM_2)
+    platform_1 = convert_to_platform(pair, PLATFORM_1)
+    platform_2 = convert_to_platform(pair_2, PLATFORM_2)
     
     
     if(pair[0]/pair[1] < pair_2[0]/pair_2[1]):
