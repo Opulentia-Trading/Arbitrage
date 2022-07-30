@@ -7,6 +7,8 @@ import (
 
 	"github.com/Opulentia-Trading/Arbitrage/env"
 	"github.com/Opulentia-Trading/Arbitrage/platformListener"
+	"github.com/Opulentia-Trading/Arbitrage/platformListener/binanceHandler"
+	"github.com/Opulentia-Trading/Arbitrage/platformListener/uniswapV3Handler"
 	"github.com/Opulentia-Trading/Arbitrage/util"
 )
 
@@ -21,7 +23,7 @@ func main() {
 	env.Load_env(dotenvPath)
 
 	// Test the Binance listener
-	binanceHandler := platformListener.NewBinanceHandler()
+	binanceHandler := binanceHandler.NewBinanceHandler()
 	binanceListener := platformListener.NewListener("Binance", binanceHandler)
 
 	fmt.Printf("========== %v Listener ==========\n", binanceListener.PlatformName)
@@ -32,7 +34,7 @@ func main() {
 	fmt.Println(tickerPriceBinance)
 
 	// Test the UniswapV3 listener
-	uniswapV3Handler := platformListener.NewUniswapV3Handler()
+	uniswapV3Handler := uniswapV3Handler.NewUniswapV3Handler()
 	uniswapV3Listener := platformListener.NewListener("UniswapV3", uniswapV3Handler)
 
 	fmt.Printf("\n========== %v Listener ==========\n", uniswapV3Listener.PlatformName)

@@ -7,22 +7,22 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type ethHandler struct {
-	providerUrl string
-	client      *ethclient.Client
+type EthHandler struct {
+	ProviderUrl string
+	Client      *ethclient.Client
 }
 
-func newEthHandler(providerUrl string) *ethHandler {
+func NewEthHandler(providerUrl string) *EthHandler {
 	client, err := ethclient.Dial(providerUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return &ethHandler{providerUrl: providerUrl, client: client}
+	return &EthHandler{ProviderUrl: providerUrl, Client: client}
 }
 
-func (e *ethHandler) getLatestBlockNumber() string {
-	header, err := e.client.HeaderByNumber(context.Background(), nil)
+func (e *EthHandler) GetLatestBlockNumber() string {
+	header, err := e.Client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}

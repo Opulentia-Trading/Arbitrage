@@ -1,32 +1,34 @@
-package platformListener
+package binanceHandler
 
 import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/Opulentia-Trading/Arbitrage/platformListener"
 )
 
 type BinanceHandler struct {
-	*cexHandler
+	*platformListener.CexHandler
 }
 
 func NewBinanceHandler() *BinanceHandler {
 	binanceBaseUrl := "https://api.binance.com"
 	binanceApiKey := ""
-	binanceEndpoints := cexEndpointIdx{
-		apiTest:        "/api/v3/ping",
-		tickerPriceAll: "/api/v3/ticker/price",
-		tickerPrice:    "/api/v3/ticker/price?symbol=",
+	binanceEndpoints := platformListener.CexEndpointIdx{
+		ApiTest:        "/api/v3/ping",
+		TickerPriceAll: "/api/v3/ticker/price",
+		TickerPrice:    "/api/v3/ticker/price?symbol=",
 	}
 
-	cexHandlerInst := newCEXHandler(binanceBaseUrl, binanceApiKey, &binanceEndpoints)
+	cexHandlerInst := platformListener.NewCEXHandler(binanceBaseUrl, binanceApiKey, &binanceEndpoints)
 	return &BinanceHandler{cexHandlerInst}
 }
 
 // Implements the ListenerHandler interface
 func (b *BinanceHandler) TestConnection() {
-	url := b.baseUrl + b.endpoints.apiTest
+	url := b.BaseUrl + b.Endpoints.ApiTest
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
@@ -45,8 +47,8 @@ func (b *BinanceHandler) TestConnection() {
 }
 
 // Implements the ListenerHandler interface
-func (b *BinanceHandler) FetchTickerPriceAll() []TickerPrice {
-	url := b.baseUrl + b.endpoints.tickerPriceAll
+func (b *BinanceHandler) FetchTickerPriceAll() []platformListener.TickerPrice {
+	url := b.BaseUrl + b.Endpoints.TickerPriceAll
 
 	// TODO: Switch to the http client and include a timeout
 	// https://medium.com/@nate510/don-t-use-go-s-default-http-client-4804cb19f779#.m1ailtazu
@@ -62,7 +64,7 @@ func (b *BinanceHandler) FetchTickerPriceAll() []TickerPrice {
 	// 	- Status code: resp.StatusCode
 	//	- Headers: resp.Header
 
-	var result []TickerPrice
+	var result []platformListener.TickerPrice
 
 	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&result)
@@ -74,9 +76,9 @@ func (b *BinanceHandler) FetchTickerPriceAll() []TickerPrice {
 }
 
 // Implements the ListenerHandler interface
-func (b *BinanceHandler) FetchTickerPrice(asset1 string, asset2 string) TickerPrice {
+func (b *BinanceHandler) FetchTickerPrice(asset1 string, asset2 string) platformListener.TickerPrice {
 	symbol := asset1 + asset2
-	url := b.baseUrl + b.endpoints.tickerPrice + symbol
+	url := b.BaseUrl + b.Endpoints.TickerPrice + symbol
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err)
@@ -85,7 +87,7 @@ func (b *BinanceHandler) FetchTickerPrice(asset1 string, asset2 string) TickerPr
 	// Free up the response body after the function completes
 	defer resp.Body.Close()
 
-	var result TickerPrice
+	var result platformListener.TickerPrice
 	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&result)
 	if err != nil {

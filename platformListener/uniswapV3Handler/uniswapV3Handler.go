@@ -1,4 +1,4 @@
-package platformListener
+package uniswapV3Handler
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Opulentia-Trading/Arbitrage/contracts/uniswapV3Pool"
+	"github.com/Opulentia-Trading/Arbitrage/platformListener"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	gethMath "github.com/ethereum/go-ethereum/common/math"
@@ -17,24 +18,24 @@ var (
 )
 
 type UniswapV3Handler struct {
-	*ethHandler
+	*platformListener.EthHandler
 }
 
 func NewUniswapV3Handler() *UniswapV3Handler {
 	infuraUrl := fmt.Sprintf("https://mainnet.infura.io/v3/%v", os.Getenv("INFURA_PROJECT_ID"))
 
-	return &UniswapV3Handler{newEthHandler(infuraUrl)}
+	return &UniswapV3Handler{platformListener.NewEthHandler(infuraUrl)}
 }
 
 // Implements the ListenerHandler interface
 func (u *UniswapV3Handler) TestConnection() {
-	result := fmt.Sprintf("Latest block: %v", u.getLatestBlockNumber())
+	result := fmt.Sprintf("Latest block: %v", u.GetLatestBlockNumber())
 	log.Println(result)
 }
 
 // Implements the ListenerHandler interface
-func (u *UniswapV3Handler) FetchTickerPriceAll() []TickerPrice {
-	var result []TickerPrice
+func (u *UniswapV3Handler) FetchTickerPriceAll() []platformListener.TickerPrice {
+	var result []platformListener.TickerPrice
 
 	for _, pool := range uniswapV3PoolMap {
 		ticker := u.getPoolPrice(pool)
@@ -45,7 +46,7 @@ func (u *UniswapV3Handler) FetchTickerPriceAll() []TickerPrice {
 }
 
 // Implements the ListenerHandler interface
-func (u *UniswapV3Handler) FetchTickerPrice(asset1 string, asset2 string) TickerPrice {
+func (u *UniswapV3Handler) FetchTickerPrice(asset1 string, asset2 string) platformListener.TickerPrice {
 	symbol := fmt.Sprintf("%v/%v", asset1, asset2)
 	pool, poolFound := uniswapV3PoolMap[symbol]
 	if !poolFound {
@@ -58,7 +59,7 @@ func (u *UniswapV3Handler) FetchTickerPrice(asset1 string, asset2 string) Ticker
 func (u *UniswapV3Handler) getPoolInstance(address string) *uniswapV3Pool.UniswapV3Pool {
 	// TODO: Implement caching of pool instances
 	poolAddress := common.HexToAddress(address)
-	instance, err := uniswapV3Pool.NewUniswapV3Pool(poolAddress, u.client)
+	instance, err := uniswapV3Pool.NewUniswapV3Pool(poolAddress, u.Client)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,7 +68,7 @@ func (u *UniswapV3Handler) getPoolInstance(address string) *uniswapV3Pool.Uniswa
 }
 
 // Returns the current mid price of a pool
-func (u *UniswapV3Handler) getPoolPrice(pool *poolWrapper) TickerPrice {
+func (u *UniswapV3Handler) getPoolPrice(pool *poolWrapper) platformListener.TickerPrice {
 	instance := u.getPoolInstance(pool.poolAddress)
 	poolState, err := instance.Slot0(&bind.CallOpts{})
 	if err != nil {
@@ -97,7 +98,7 @@ func (u *UniswapV3Handler) getPoolPrice(pool *poolWrapper) TickerPrice {
 		token0Price.Quo(token0Price, priceScalar)
 	}
 
-	return TickerPrice{
+	return platformListener.TickerPrice{
 		Symbol: pool.token0.symbol + pool.token1.symbol,
 		Price:  token0Price.FloatString(int(pool.token1.decimals)),
 	}

@@ -1,17 +1,17 @@
 package platformListener
 
-type cexEndpointIdx struct {
-	apiTest        string
-	tickerPriceAll string
-	tickerPrice    string
+type CexEndpointIdx struct {
+	ApiTest        string
+	TickerPriceAll string
+	TickerPrice    string
 }
 
-type cexHandler struct {
-	baseUrl   string
-	apiKey    string
-	endpoints *cexEndpointIdx
+type CexHandler struct {
+	BaseUrl   string
+	ApiKey    string
+	Endpoints *CexEndpointIdx
 }
 
-func newCEXHandler(baseUrl string, apiKey string, endpoints *cexEndpointIdx) *cexHandler {
-	return &cexHandler{baseUrl, apiKey, endpoints}
+func NewCEXHandler(baseUrl string, apiKey string, endpoints *CexEndpointIdx) *CexHandler {
+	return &CexHandler{baseUrl, apiKey, endpoints}
 }
