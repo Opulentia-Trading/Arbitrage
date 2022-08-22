@@ -9,6 +9,7 @@
   "author": "",
   "license": "UNLICENSED",
   "dependencies": {
+    "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v3-core": "^1.0.1"
   }
 }

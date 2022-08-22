@@ -85,7 +85,7 @@ func (u *UniswapV3Handler) getPoolPrice(pool *poolWrapper) platformListener.Tick
 	// Determine the priceScalar based on the number of decimals in the
 	// base and quote tokens. Computed using the formula below:
 	// priceScalar = (10 ^ baseDecimals) / (10 ^ quoteDecimals)
-	diffDecimals := pool.token0.decimals - pool.token1.decimals
+	diffDecimals := pool.token0.Decimals - pool.token1.Decimals
 	priceScalar := new(big.Rat)
 
 	if diffDecimals >= 0 {
@@ -99,7 +99,7 @@ func (u *UniswapV3Handler) getPoolPrice(pool *poolWrapper) platformListener.Tick
 	}
 
 	return platformListener.TickerPrice{
-		Symbol: pool.token0.symbol + pool.token1.symbol,
-		Price:  token0Price.FloatString(int(pool.token1.decimals)),
+		Symbol: pool.token0.Symbol + pool.token1.Symbol,
+		Price:  token0Price.FloatString(int(pool.token1.Decimals)),
 	}
 }

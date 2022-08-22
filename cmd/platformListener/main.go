@@ -8,6 +8,7 @@ import (
 	"github.com/Opulentia-Trading/Arbitrage/env"
 	"github.com/Opulentia-Trading/Arbitrage/platformListener"
 	"github.com/Opulentia-Trading/Arbitrage/platformListener/binanceHandler"
+	"github.com/Opulentia-Trading/Arbitrage/platformListener/uniswapV2Handler"
 	"github.com/Opulentia-Trading/Arbitrage/platformListener/uniswapV3Handler"
 	"github.com/Opulentia-Trading/Arbitrage/util"
 )
@@ -39,10 +40,24 @@ func main() {
 
 	fmt.Printf("\n========== %v Listener ==========\n", uniswapV3Listener.PlatformName)
 	uniswapV3Listener.TestConnection()
-	tickerPricesUniswap := uniswapV3Listener.FetchTickerPriceAll()
-	fmt.Println(tickerPricesUniswap)
-	tickerPriceUniswap := uniswapV3Listener.FetchTickerPrice("LINK", "ETH")
-	fmt.Println(tickerPriceUniswap)
+	tickerPricesUniV3 := uniswapV3Listener.FetchTickerPriceAll()
+	fmt.Println(tickerPricesUniV3)
+	tickerPriceUniV3 := uniswapV3Listener.FetchTickerPrice("LINK", "ETH")
+	fmt.Println(tickerPriceUniV3)
+
+	// Test the UniswapV2 listener
+	uniswapV2Handler := uniswapV2Handler.NewUniswapV2Handler()
+	uniswapV2Listener := platformListener.NewListener("UniswapV2", uniswapV2Handler)
+
+	fmt.Printf("\n========== %v Listener ==========\n", uniswapV2Listener.PlatformName)
+	uniswapV2Listener.TestConnection()
+	tickerPricesUniV2 := uniswapV2Listener.FetchTickerPriceAll()
+	fmt.Println(tickerPricesUniV2)
+	tickerPriceUniV2 := uniswapV2Listener.FetchTickerPrice("LINK", "ETH")
+	fmt.Println(tickerPriceUniV2)
+	fmt.Println()
+	pairInfoUniV2 := uniswapV2Handler.FetchPairInfo("LINK", "ETH")
+	log.Println(util.PrettyPrint(pairInfoUniV2))
 
 	// Test Eth Gas Estimation
 	fmt.Printf("\n========== Ethereum Gas Estimation ==========\n")
