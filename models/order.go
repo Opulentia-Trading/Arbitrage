@@ -6,13 +6,14 @@ import (
 )
 
 type Order struct {
-	Exchange  *Exchange
-	Base      string
-	Quote     string
-	Action    *Action
-	Price     *big.Rat
-	AmountIn  *big.Int
-	AmountOut *big.Int
-	Deadline  time.Time
-	Next      *Order
+	Exchange         *Exchange
+	Base             string
+	Quote            string
+	Action           Action
+	Price            *big.Rat
+	Quantity         *big.Int
+	LiqPoolAmountIn  *big.Int
+	LiqPoolAmountOut *big.Int
+	Deadline         time.Duration
+	Next             *Order
 }

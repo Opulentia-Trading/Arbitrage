@@ -1,4 +1,4 @@
-package platformListener
+package ethHandler
 
 import (
 	"context"
@@ -14,6 +14,8 @@ import (
 	gethMath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
+
+// TODO: Convert tests into a gasEstimator module
 
 /*
 Eth Gas Reference:
