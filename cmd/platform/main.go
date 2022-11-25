@@ -61,15 +61,39 @@ func platformTest(platformName string, base string, quote string) {
 		fmt.Println(util.PrettyPrint(reserves))
 	}
 
-	testOrder := models.Order{
-		Exchange: platformInfo,
-		Base:     base,
-		Quote:    quote,
-		Action:   models.BuyLongSpot,
-		Price:    new(big.Rat).SetFloat64(24.86),
-		Quantity: big.NewInt(200),
-		Deadline: time.Minute,
+	var testOrder models.Order
+	if platformInfo.Type == models.Centralized {
+		testOrder = models.Order{
+			Exchange: platformInfo,
+			Base:     base,
+			Quote:    quote,
+			Action:   models.BuyLongSpot,
+			Price:    new(big.Rat).SetFloat64(24.86),
+			Quantity: big.NewInt(200),
+			Deadline: time.Minute,
+		}
+	} else if platformInfo.Type == models.Decentralized {
+		amountIn := new(big.Int)
+		if _, ok := amountIn.SetString("1000000000000000", 10); !ok {
+			panic("failed to parse amountIn")
+		}
+
+		amountOut := new(big.Int)
+		if _, ok := amountOut.SetString("47100000000", 10); !ok {
+			panic("failed to parse amountOut")
+		}
+
+		testOrder = models.Order{
+			Exchange:         platformInfo,
+			Base:             base,
+			Quote:            quote,
+			Action:           models.BuyLongSpot,
+			LiqPoolAmountIn:  amountIn,
+			LiqPoolAmountOut: amountOut,
+			Deadline:         time.Minute,
+		}
 	}
+
 	fmt.Println("\n+--------- Execute Order ---------+")
 	platform.ExecuteOrder(testOrder)
 }
@@ -84,7 +108,8 @@ func main() {
 	dotenvPath := filepath.Join(dirname, "../../env/.env")
 	env.Load_env(dotenvPath)
 
-	platformNames := []string{"binance", "uniswap_v2", "uniswap_v3"}
+	// platformNames := []string{"binance", "uniswap_v2", "uniswap_v3"}
+	platformNames := []string{"uniswap_v2"}
 	for _, platformName := range platformNames {
 		platformTest(platformName, "LINK", "ETH")
 		fmt.Print("\n\n\n")

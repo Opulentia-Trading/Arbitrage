@@ -12,8 +12,8 @@ type Order struct {
 	Action           Action
 	Price            *big.Rat
 	Quantity         *big.Int
-	LiqPoolAmountIn  *big.Int
-	LiqPoolAmountOut *big.Int
+	LiqPoolAmountIn  *big.Int // in wei
+	LiqPoolAmountOut *big.Int // in wei
 	Deadline         time.Duration
 	Next             *Order
 }

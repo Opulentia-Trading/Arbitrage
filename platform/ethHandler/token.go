@@ -1,6 +1,10 @@
 package ethHandler
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/common"
+)
 
 type TokenType uint
 
@@ -106,6 +110,11 @@ func GetToken(chainId ChainId, symbol string) (*Token, error) {
 	}
 
 	return token, nil
+}
+
+// Returns the token address in a byte array format used by the Go Ethereum package
+func (t *Token) AddressForGeth() common.Address {
+	return common.HexToAddress(t.Address)
 }
 
 func (t *Token) String() string {

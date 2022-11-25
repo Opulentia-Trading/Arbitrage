@@ -45,15 +45,21 @@ func genPairsMapKey(chainId ethHandler.ChainId, base string, quote string) strin
 	return fmt.Sprintf("%v|%v/%v", chainId, base, quote)
 }
 
-func GetPair(chainId ethHandler.ChainId, base string, quote string) (*PairWrapper, error) {
+func NormalizePairTokens(base string, quote string) (string, string) {
 	// Wrap native ETH
 	if base == "ETH" {
 		base = "WETH"
 	}
+
 	if quote == "ETH" {
 		quote = "WETH"
 	}
 
+	return base, quote
+}
+
+func GetPair(chainId ethHandler.ChainId, base string, quote string) (*PairWrapper, error) {
+	base, quote = NormalizePairTokens(base, quote)
 	key := genPairsMapKey(chainId, base, quote)
 	pair, pairFound := pairsMap[key]
 	if !pairFound {

@@ -3,8 +3,14 @@ package ethHandler
 import (
 	"context"
 	"fmt"
+	"math/big"
+	"time"
 
 	"github.com/Opulentia-Trading/Arbitrage/models"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -65,4 +71,53 @@ func (e *EthHandler) TestConnection() (string, error) {
 		latestBlock)
 
 	return output, nil
+}
+
+func (e *EthHandler) WaitTxMined(tx *types.Transaction, fromAddress common.Address, waitTimeout time.Duration) (*types.Receipt, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
+	defer cancel()
+
+	fmt.Printf("\nwaiting for tx to be mined (waitTimeout=%v) ...\n", waitTimeout)
+	txReceipt, err := bind.WaitMined(ctx, e.Client, tx)
+	if err != nil {
+		panic(err)
+	}
+
+	txSuccess := txReceipt.Status == types.ReceiptStatusSuccessful
+	fmt.Println("[mined tx receipt]")
+	fmt.Println("status successful: ", txSuccess)
+	fmt.Println("block number: ", txReceipt.BlockNumber)
+	fmt.Println("block hash: ", txReceipt.BlockHash)
+	fmt.Println("tx index: ", txReceipt.TransactionIndex)
+	fmt.Println("gas used: ", txReceipt.GasUsed)
+	fmt.Println("type: ", txReceipt.Type)
+
+	if !txSuccess {
+		err := e.FailedTxError(tx, fromAddress, txReceipt.BlockNumber)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return txReceipt, nil
+}
+
+// The error from a failed transaction is not included in the tx receipt or logs.
+// The eth_call RPC method executes a message call directly in the VM of a node without creating a blockchain transaction.
+// Using this, we can replay the failed transaction locally on a node to retrieve the error.
+// Note: eth_call does not consume gas.
+func (e *EthHandler) FailedTxError(tx *types.Transaction, fromAddress common.Address, blockNumber *big.Int) error {
+	msg := ethereum.CallMsg{
+		From:      fromAddress,
+		To:        tx.To(),
+		Gas:       tx.Gas(),
+		GasPrice:  tx.GasPrice(),
+		GasFeeCap: tx.GasFeeCap(),
+		GasTipCap: tx.GasTipCap(),
+		Value:     tx.Value(),
+		Data:      tx.Data(),
+	}
+
+	_, err := e.Client.CallContract(context.Background(), msg, blockNumber)
+	return err
 }

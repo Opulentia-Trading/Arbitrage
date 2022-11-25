@@ -1,23 +1,34 @@
 package uniswapV2Handler
 
 import (
+	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/Opulentia-Trading/Arbitrage/contracts/uniswapV2Pair"
+	"github.com/Opulentia-Trading/Arbitrage/contracts/uniswapV2Router02"
 	"github.com/Opulentia-Trading/Arbitrage/models"
 	"github.com/Opulentia-Trading/Arbitrage/platform/ethHandler"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	gethMath "github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const PlatformName = "uniswap_v2"
+const (
+	PlatformName      = "uniswap_v2"
+	router02Address   = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+	swapFee           = "0.3" // in percent
+	txMineWaitTimeout = 5 * time.Minute
+)
 
 // Implements the Platform interface
 type UniswapV2Handler struct {
 	*ethHandler.EthHandler
+	SwapNativeETH bool // use native ETH as the input/output of a swap
+	SendSwapTx    bool // broadcast swap tx on blockchain
 }
 
 type PairReserves struct {
@@ -37,7 +48,7 @@ func NewUniswapV2Handler() (*UniswapV2Handler, error) {
 		Name: PlatformName,
 	}
 
-	network, err := ethHandler.GetEvmNetwork("ethereum_mainnet")
+	network, err := ethHandler.GetEvmNetwork("ethereum_goerli")
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +69,11 @@ func NewUniswapV2Handler() (*UniswapV2Handler, error) {
 		panic(err)
 	}
 
-	return &UniswapV2Handler{ethHandlerInst}, nil
+	return &UniswapV2Handler{
+		EthHandler:    ethHandlerInst,
+		SwapNativeETH: true,
+		SendSwapTx:    true,
+	}, nil
 }
 
 func isSupportedNetwork(network *ethHandler.EvmNetwork) bool {
@@ -111,8 +126,6 @@ func (h *UniswapV2Handler) getPairInstance(address string) (*uniswapV2Pair.Unisw
 
 // Returns the current mid price of a pair
 func (h *UniswapV2Handler) getPairPrice(pair *PairWrapper) (models.TickerInfo, error) {
-	var result models.TickerInfo
-
 	instance, err := h.getPairInstance(pair.PairAddress)
 	if err != nil {
 		panic(err)
@@ -151,13 +164,13 @@ func (h *UniswapV2Handler) getPairPrice(pair *PairWrapper) (models.TickerInfo, e
 		token0Price.Quo(token0Price, priceScalar)
 	}
 
-	result = models.TickerInfo{
+	result := models.TickerInfo{
 		Symbol:         pair.Symbol(),
 		Base:           pair.Token0Symbol,
 		Quote:          pair.Token1Symbol,
 		Price:          token0Price.FloatString(int(token1.Decimals)),
-		MakerComission: "0.3",
-		TakerComission: "0.3",
+		MakerComission: swapFee,
+		TakerComission: swapFee,
 		Timestamp:      time.Now(),
 	}
 
@@ -204,8 +217,153 @@ func (h *UniswapV2Handler) FetchPairReserves(base string, quote string) (*PairRe
 	return result, nil
 }
 
+// Returns an instance for interacting with the IUniswapV2Router02 smart contract
+func (h *UniswapV2Handler) getRouter02Instance(address string) (*uniswapV2Router02.UniswapV2Router02, error) {
+	routerAddress := common.HexToAddress(address)
+	instance, err := uniswapV2Router02.NewUniswapV2Router02(routerAddress, h.Client)
+	if err != nil {
+		panic(err)
+	}
+
+	return instance, nil
+}
+
+func (h *UniswapV2Handler) getOrderPath(
+	base common.Address,
+	quote common.Address,
+	action models.Action,
+) ([]common.Address, error) {
+	var path []common.Address
+
+	switch action {
+	case models.BuyLongSpot:
+		path = []common.Address{quote, base}
+	case models.SellLongSpot:
+		path = []common.Address{base, quote}
+	default:
+		return nil, fmt.Errorf("unsupported action %v", action)
+	}
+
+	return path, nil
+}
+
 func (h *UniswapV2Handler) ExecuteOrder(order models.Order) error {
-	fmt.Printf("Executing %v/%v %v order\n", order.Base, order.Quote, order.Action.String())
+	wallet, err := ethHandler.GetWallet(os.Getenv("WALLET_PRIVATE_KEY"))
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO: Maybe keep track of nonce locally
+	nonce, err := h.Client.PendingNonceAt(context.Background(), wallet.Address)
+	if err != nil {
+		panic(err)
+	}
+
+	chainId := big.NewInt(int64(h.Network.ChainId))
+	auth, err := bind.NewKeyedTransactorWithChainID(wallet.PrivateKey, chainId)
+	if err != nil {
+		panic(err)
+	}
+
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = nil
+	auth.NoSend = !h.SendSwapTx
+
+	routerInstance, err := h.getRouter02Instance(router02Address)
+	if err != nil {
+		panic(err)
+	}
+
+	baseSymbol, quoteSymbol := NormalizePairTokens(order.Base, order.Quote)
+	baseToken, err := ethHandler.GetToken(h.Network.ChainId, baseSymbol)
+	if err != nil {
+		panic(err)
+	}
+
+	quoteToken, err := ethHandler.GetToken(h.Network.ChainId, quoteSymbol)
+	if err != nil {
+		panic(err)
+	}
+
+	wethToken, err := ethHandler.GetToken(h.Network.ChainId, "WETH")
+	if err != nil {
+		panic(err)
+	}
+
+	baseAddress := baseToken.AddressForGeth()
+	quoteAddress := quoteToken.AddressForGeth()
+	wethAddress := wethToken.AddressForGeth()
+	path, err := h.getOrderPath(baseAddress, quoteAddress, order.Action)
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO: Get gas estimates from the gasEstimator module
+	auth.GasPrice = nil
+	auth.GasFeeCap = nil
+	auth.GasTipCap = nil
+	auth.GasLimit = uint64(0) // in units (300000 should be a good upper bound)
+
+	deadline := big.NewInt(time.Now().Add(order.Deadline).Unix())
+	var tx *types.Transaction = nil
+
+	// TODO: Ensure the uniV2 router has approval for the input token
+	if h.SwapNativeETH && path[0] == wethAddress {
+		auth.Value = order.LiqPoolAmountIn
+		tx, err = routerInstance.SwapExactETHForTokens(
+			auth,
+			order.LiqPoolAmountOut,
+			path,
+			wallet.Address,
+			deadline)
+
+		if err != nil {
+			panic(err)
+		}
+	} else if h.SwapNativeETH && path[len(path)-1] == wethAddress {
+		tx, err = routerInstance.SwapExactTokensForETH(
+			auth,
+			order.LiqPoolAmountIn,
+			order.LiqPoolAmountOut,
+			path,
+			wallet.Address,
+			deadline)
+
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		tx, err = routerInstance.SwapExactTokensForTokens(
+			auth,
+			order.LiqPoolAmountIn,
+			order.LiqPoolAmountOut,
+			path,
+			wallet.Address,
+			deadline)
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if tx == nil {
+		panic("failed to prepare transaction")
+	}
+
+	fmt.Printf("tx hash: %s\n", tx.Hash())
+	fmt.Printf("gas priority fee: %v\n", tx.GasTipCap())
+	fmt.Printf("gas max fee: %v\n", tx.GasFeeCap())
+	fmt.Printf("gas limit: %v\n", tx.Gas())
+	if auth.NoSend {
+		fmt.Println("Note: transaction not sent on blockchain")
+		return nil
+	}
+
+	_, err = h.WaitTxMined(tx, wallet.Address, txMineWaitTimeout)
+	if err != nil {
+		panic(err)
+	}
+
 	return nil
 }
 
