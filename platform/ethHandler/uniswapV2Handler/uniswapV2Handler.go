@@ -19,10 +19,11 @@ import (
 
 const (
 	PlatformName      = "uniswap_v2"
-	router02Address   = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
 	swapFee           = "0.3" // in percent
 	txMineWaitTimeout = 5 * time.Minute
 )
+
+var router02Address = common.HexToAddress("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
 
 // Implements the Platform interface
 type UniswapV2Handler struct {
@@ -71,7 +72,7 @@ func NewUniswapV2Handler() (*UniswapV2Handler, error) {
 
 	return &UniswapV2Handler{
 		EthHandler:    ethHandlerInst,
-		SwapNativeETH: true,
+		SwapNativeETH: false,
 		SendSwapTx:    true,
 	}, nil
 }
@@ -218,9 +219,8 @@ func (h *UniswapV2Handler) FetchPairReserves(base string, quote string) (*PairRe
 }
 
 // Returns an instance for interacting with the IUniswapV2Router02 smart contract
-func (h *UniswapV2Handler) getRouter02Instance(address string) (*uniswapV2Router02.UniswapV2Router02, error) {
-	routerAddress := common.HexToAddress(address)
-	instance, err := uniswapV2Router02.NewUniswapV2Router02(routerAddress, h.Client)
+func (h *UniswapV2Handler) getRouter02Instance() (*uniswapV2Router02.UniswapV2Router02, error) {
+	instance, err := uniswapV2Router02.NewUniswapV2Router02(router02Address, h.Client)
 	if err != nil {
 		panic(err)
 	}
@@ -229,32 +229,45 @@ func (h *UniswapV2Handler) getRouter02Instance(address string) (*uniswapV2Router
 }
 
 func (h *UniswapV2Handler) getOrderPath(
-	base common.Address,
-	quote common.Address,
+	base *ethHandler.Token,
+	quote *ethHandler.Token,
 	action models.Action,
-) ([]common.Address, error) {
+) ([]common.Address, *ethHandler.Token, error) {
+	baseAddress := base.AddressForGeth()
+	quoteAddress := quote.AddressForGeth()
 	var path []common.Address
+	var inputToken *ethHandler.Token
 
 	switch action {
 	case models.BuyLongSpot:
-		path = []common.Address{quote, base}
+		path = []common.Address{quoteAddress, baseAddress}
+		inputToken = quote
 	case models.SellLongSpot:
-		path = []common.Address{base, quote}
+		path = []common.Address{baseAddress, quoteAddress}
+		inputToken = base
 	default:
-		return nil, fmt.Errorf("unsupported action %v", action)
+		return nil, nil, fmt.Errorf("unsupported action %v", action)
 	}
 
-	return path, nil
+	return path, inputToken, nil
 }
 
-func (h *UniswapV2Handler) ExecuteOrder(order models.Order) error {
-	wallet, err := ethHandler.GetWallet(os.Getenv("WALLET_PRIVATE_KEY"))
+func (h *UniswapV2Handler) approveToken(wallet *ethHandler.Wallet, token *ethHandler.Token) error {
+	tokenHandler, err := ethHandler.NewERC20Handler(h.EthHandler, token)
 	if err != nil {
 		panic(err)
 	}
 
-	// TODO: Maybe keep track of nonce locally
-	nonce, err := h.Client.PendingNonceAt(context.Background(), wallet.Address)
+	err = tokenHandler.MaxApprove(wallet, router02Address, true)
+	if err != nil {
+		panic(err)
+	}
+
+	return nil
+}
+
+func (h *UniswapV2Handler) ExecuteOrder(order models.Order) error {
+	wallet, err := ethHandler.GetWallet(os.Getenv("WALLET_PRIVATE_KEY"))
 	if err != nil {
 		panic(err)
 	}
@@ -265,11 +278,7 @@ func (h *UniswapV2Handler) ExecuteOrder(order models.Order) error {
 		panic(err)
 	}
 
-	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = nil
-	auth.NoSend = !h.SendSwapTx
-
-	routerInstance, err := h.getRouter02Instance(router02Address)
+	routerInstance, err := h.getRouter02Instance()
 	if err != nil {
 		panic(err)
 	}
@@ -290,13 +299,29 @@ func (h *UniswapV2Handler) ExecuteOrder(order models.Order) error {
 		panic(err)
 	}
 
-	baseAddress := baseToken.AddressForGeth()
-	quoteAddress := quoteToken.AddressForGeth()
 	wethAddress := wethToken.AddressForGeth()
-	path, err := h.getOrderPath(baseAddress, quoteAddress, order.Action)
+	path, inputToken, err := h.getOrderPath(baseToken, quoteToken, order.Action)
 	if err != nil {
 		panic(err)
 	}
+
+	if !h.SwapNativeETH || path[0] != wethAddress {
+		// TODO: Pre-approve tokens on init
+		err := h.approveToken(wallet, inputToken)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// TODO: Maybe keep track of nonce locally
+	nonce, err := h.Client.PendingNonceAt(context.Background(), wallet.Address)
+	if err != nil {
+		panic(err)
+	}
+
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = nil
+	auth.NoSend = !h.SendSwapTx
 
 	// TODO: Get gas estimates from the gasEstimator module
 	auth.GasPrice = nil
@@ -307,7 +332,6 @@ func (h *UniswapV2Handler) ExecuteOrder(order models.Order) error {
 	deadline := big.NewInt(time.Now().Add(order.Deadline).Unix())
 	var tx *types.Transaction = nil
 
-	// TODO: Ensure the uniV2 router has approval for the input token
 	if h.SwapNativeETH && path[0] == wethAddress {
 		auth.Value = order.LiqPoolAmountIn
 		tx, err = routerInstance.SwapExactETHForTokens(
@@ -350,6 +374,7 @@ func (h *UniswapV2Handler) ExecuteOrder(order models.Order) error {
 		panic("failed to prepare transaction")
 	}
 
+	fmt.Printf("\n[[ %v/%v %v tx ]]\n", order.Base, order.Quote, order.Action.String())
 	fmt.Printf("tx hash: %s\n", tx.Hash())
 	fmt.Printf("gas priority fee: %v\n", tx.GasTipCap())
 	fmt.Printf("gas max fee: %v\n", tx.GasFeeCap())

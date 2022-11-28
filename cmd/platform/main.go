@@ -79,7 +79,7 @@ func platformTest(platformName string, base string, quote string) {
 		}
 
 		amountOut := new(big.Int)
-		if _, ok := amountOut.SetString("47100000000", 10); !ok {
+		if _, ok := amountOut.SetString("47100000000", 10); !ok { // Buy: 47100000000, Sell: 302199074434
 			panic("failed to parse amountOut")
 		}
 

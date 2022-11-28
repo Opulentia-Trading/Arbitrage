@@ -77,15 +77,15 @@ func (e *EthHandler) WaitTxMined(tx *types.Transaction, fromAddress common.Addre
 	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 
-	fmt.Printf("\nwaiting for tx to be mined (waitTimeout=%v) ...\n", waitTimeout)
+	fmt.Printf("waiting for tx to be mined (waitTimeout=%v) ...\n", waitTimeout)
 	txReceipt, err := bind.WaitMined(ctx, e.Client, tx)
 	if err != nil {
 		panic(err)
 	}
 
 	txSuccess := txReceipt.Status == types.ReceiptStatusSuccessful
-	fmt.Println("[mined tx receipt]")
-	fmt.Println("status successful: ", txSuccess)
+	fmt.Println("\n[mined tx receipt]")
+	fmt.Println("status success: ", txSuccess)
 	fmt.Println("block number: ", txReceipt.BlockNumber)
 	fmt.Println("block hash: ", txReceipt.BlockHash)
 	fmt.Println("tx index: ", txReceipt.TransactionIndex)
@@ -97,6 +97,9 @@ func (e *EthHandler) WaitTxMined(tx *types.Transaction, fromAddress common.Addre
 		if err != nil {
 			panic(err)
 		}
+
+		err = fmt.Errorf("txHash=%v failed", tx.Hash())
+		panic(err)
 	}
 
 	return txReceipt, nil
